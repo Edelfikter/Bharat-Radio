@@ -157,11 +157,34 @@ Broadcasting requires **no streaming server**. It's pure math:
 
 ---
 
-## Deployment (Render / Glitch / Railway)
+## Deployment
+
+### Vercel (Recommended)
 
 1. Push code to GitHub
-2. Connect to Render (or similar), set start command to `npm start`
+2. Import the repository at [vercel.com/new](https://vercel.com/new)
+3. Keep **Framework Preset** as "Other" and leave build/output settings empty
+4. Add environment variables:
+   | Variable | Value |
+   |----------|-------|
+   | `JWT_SECRET` | A long random secret (see below) |
+   | `NODE_ENV` | `production` |
+5. Click **Deploy**
+
+Generate a secure `JWT_SECRET` locally:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+> **SQLite Note**: Vercel's serverless functions use an ephemeral filesystem, so the SQLite database (`radio.sqlite`) will reset whenever the serverless function environment is recycled (e.g., after each deployment or period of inactivity). For persistent storage in production, consider migrating to a cloud database such as [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), [PlanetScale](https://planetscale.com/), or [Supabase](https://supabase.com/).
+>
+> **Socket.io Note**: Vercel serverless functions do not support persistent WebSocket connections. The Socket.io-powered global chat requires a long-running server; on Vercel it will fall back to long-polling, which may have increased latency. For full WebSocket support, consider [Railway](https://railway.app/) or [Render](https://render.com/).
+
+### Render / Railway (Alternative)
+
+1. Push code to GitHub
+2. Connect to Render or Railway, set start command to `npm start`
 3. Set environment variable `JWT_SECRET` to a random secret
 4. The SQLite database is written to `radio.sqlite` in the project root
 
-> **Note**: On free-tier hosting with ephemeral filesystems, the SQLite database resets on restart. For persistence, consider mounting a disk or migrating to PostgreSQL.
+> **Note**: On free-tier hosting with ephemeral filesystems, the SQLite database resets on restart. For persistence, consider mounting a persistent disk or migrating to PostgreSQL.
