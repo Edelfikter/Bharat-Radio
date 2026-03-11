@@ -1,7 +1,6 @@
 'use strict';
 
 const express = require('express');
-const http = require('http');
 const path = require('path');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -11,13 +10,14 @@ const stationsRoutes = require('./routes/stations');
 const segmentsRoutes = require('./routes/segments');
 const broadcastRoutes = require('./routes/broadcast');
 const youtubeRoutes = require('./routes/youtube');
-const { setupSocket } = require('./chat/socket');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Rate limiting: 200 requests per 15 min for API, 500 for SPA
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', apiLimiter);
 
@@ -32,20 +32,37 @@ app.use('/api/stations', stationsRoutes);
 app.use('/api/stations', segmentsRoutes);
 app.use('/api/stations', broadcastRoutes);
 app.use('/api/youtube', youtubeRoutes);
+app.use('/api/chat', chatRoutes);
 
-// Stats
-app.get('/api/stats', (req, res) => {
-  const db = require('./db');
-  const stations_total = db.prepare('SELECT COUNT(*) as c FROM stations').get().c;
-  const stations_live = db.prepare('SELECT COUNT(*) as c FROM stations WHERE is_live=1').get().c;
-  const users_total = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  const { getIO } = require('./chat/socket');
-  let listeners_online = 0;
-  try { const io = getIO(); listeners_online = io.engine.clientsCount; } catch (e) {}
-  res.json({ stations_total, stations_live, users_total, listeners_online, server_time: Date.now() });
+// Client-side Pusher configuration (public key and cluster only)
+app.get('/api/config', (req, res) => {
+  res.json({
+    pusherKey: process.env.PUSHER_KEY || '',
+    pusherCluster: process.env.PUSHER_CLUSTER || 'mt1',
+  });
 });
 
-// SPA fallback
+// Stats endpoint
+app.get('/api/stats', async (req, res) => {
+  try {
+    const sql = require('./db');
+    const [stationsTotal] = await sql`SELECT COUNT(*)::INTEGER AS c FROM stations`;
+    const [stationsLive] = await sql`SELECT COUNT(*)::INTEGER AS c FROM stations WHERE is_live = 1`;
+    const [usersTotal] = await sql`SELECT COUNT(*)::INTEGER AS c FROM users`;
+    return res.json({
+      stations_total: parseInt(stationsTotal.c, 10),
+      stations_live: parseInt(stationsLive.c, 10),
+      users_total: parseInt(usersTotal.c, 10),
+      listeners_online: 0,
+      server_time: Date.now(),
+    });
+  } catch (err) {
+    console.error('[stats] error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// SPA fallback (for client-side routing)
 app.get('*', spaLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
@@ -53,9 +70,7 @@ app.get('*', spaLimiter, (req, res) => {
 // Start server when run directly (local dev)
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  const server = http.createServer(app);
-  setupSocket(server);
-  server.listen(PORT, () => console.log(`Bharat Radio on http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`Bharat Radio on http://localhost:${PORT}`));
 }
 
 module.exports = app;
