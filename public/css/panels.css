@@ -1,0 +1,142 @@
+/* ─── Base floating panel ───────────────────────────────────── */
+.panel {
+  position: fixed;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 0 24px rgba(0,255,136,0.15);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 60px);
+  width: 320px;
+  backdrop-filter: blur(6px);
+}
+
+/* ─── Panel header ──────────────────────────────────────────── */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0,255,136,0.3);
+  font-size: 11px;
+  letter-spacing: 2px;
+  background: rgba(0,20,8,0.5);
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+  text-shadow: 0 0 6px var(--green);
+}
+
+/* ─── Panel body ────────────────────────────────────────────── */
+.panel-body {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--green-dim) transparent;
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+/* ─── Close button ──────────────────────────────────────────── */
+.btn-close {
+  background: none;
+  border: none;
+  color: var(--green-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  font-family: var(--font);
+  line-height: 1;
+  transition: color 0.15s;
+}
+.btn-close:hover { color: var(--red); }
+
+/* ─── Panel positions ───────────────────────────────────────── */
+#station-form-panel {
+  top: 54px;
+  left: 16px;
+}
+
+#station-panel {
+  top: 54px;
+  right: 16px;
+}
+
+/* ─── Segment list items ────────────────────────────────────── */
+.segment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(0,255,136,0.15);
+  margin-bottom: 6px;
+  background: rgba(0,20,8,0.4);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.segment-item:hover { border-color: rgba(0,255,136,0.4); }
+
+.segment-pos {
+  color: var(--green-dim);
+  font-size: 10px;
+  min-width: 20px;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.segment-info { flex: 1; min-width: 0; }
+
+.segment-type-badge {
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 1px 4px;
+  border: 1px solid;
+  display: inline-block;
+  margin-bottom: 3px;
+}
+.segment-type-badge.youtube { border-color: #ff4444; color: #ff6666; }
+.segment-type-badge.tts { border-color: #4488ff; color: #66aaff; }
+
+.segment-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 190px;
+}
+
+.segment-duration {
+  font-size: 10px;
+  color: var(--green-dim);
+}
+
+.segment-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.segment-controls .btn-terminal {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+/* Current playing highlight */
+.segment-item.currently-playing {
+  border-color: var(--green);
+  background: rgba(0,255,136,0.08);
+  box-shadow: 0 0 8px rgba(0,255,136,0.2);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  color: var(--green-dim);
+  font-size: 11px;
+  padding: 20px;
+  letter-spacing: 1px;
+}
