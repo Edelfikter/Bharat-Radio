@@ -21,6 +21,8 @@ app.use(express.json());
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', apiLimiter);
 
+const spaLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
+
 // Static files from public/
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -44,7 +46,7 @@ app.get('/api/stats', (req, res) => {
 });
 
 // SPA fallback
-app.get('*', (req, res) => {
+app.get('*', spaLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
