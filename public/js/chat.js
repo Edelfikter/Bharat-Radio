@@ -1,60 +1,83 @@
 /* ─── chat.js ───────────────────────────────────────────────── */
-let _socket = null;
+let _pusher = null;
 let _chatCollapsed = false;
 
-function initChat() {
-  _socket = io({ transports: ['websocket', 'polling'] });
+async function initChat() {
+  // Fetch Pusher config from server
+  let pusherKey = '';
+  let pusherCluster = 'mt1';
+  try {
+    const config = await apiFetch('/api/config');
+    pusherKey = config.pusherKey;
+    pusherCluster = config.pusherCluster;
+  } catch (e) {
+    console.warn('Could not fetch Pusher config:', e.message);
+  }
 
-  _socket.on('connect', () => {
-    console.log('Chat connected');
-  });
-
-  _socket.on('chat:history', (messages) => {
+  // Load chat history via HTTP
+  try {
+    const history = await apiFetch('/api/chat/history');
     const list = document.getElementById('chat-messages');
     list.innerHTML = '';
-    if (messages.length > 0) {
+    if (history.length > 0) {
       const divider = document.createElement('div');
       divider.className = 'chat-history-divider';
       divider.textContent = '── TRANSMISSION LOG ──';
       list.appendChild(divider);
-      messages.forEach(msg => appendMessage(msg));
+      history.forEach(msg => appendMessage(msg));
     }
     list.scrollTop = list.scrollHeight;
-  });
+  } catch (e) {
+    console.warn('Could not load chat history:', e.message);
+  }
 
-  _socket.on('chat:message', (msg) => {
-    appendMessage(msg);
-    const list = document.getElementById('chat-messages');
-    list.scrollTop = list.scrollHeight;
-  });
+  // Connect to Pusher for real-time events
+  if (pusherKey && typeof Pusher !== 'undefined') {
+    _pusher = new Pusher(pusherKey, { cluster: pusherCluster });
 
-  // Station events
-  _socket.on('station:live', ({ id }) => {
-    if (window.updateMarkerLive) window.updateMarkerLive(id, true);
-    if (window.getCurrentStationId && window.getCurrentStationId() === id) {
-      if (window.openStationPanel) window.openStationPanel(id);
-    }
-  });
+    const chatChannel = _pusher.subscribe('global-chat');
+    chatChannel.bind('chat:message', (msg) => {
+      appendMessage(msg);
+      const list = document.getElementById('chat-messages');
+      list.scrollTop = list.scrollHeight;
+    });
 
-  _socket.on('station:stop', ({ id }) => {
-    if (window.updateMarkerLive) window.updateMarkerLive(id, false);
-    if (window.getCurrentStationId && window.getCurrentStationId() === id) {
-      if (window.stopPlayerSync) window.stopPlayerSync();
-      if (window.openStationPanel) window.openStationPanel(id);
-    }
-  });
+    const stationsChannel = _pusher.subscribe('stations');
+    stationsChannel.bind('station:live', ({ id }) => {
+      if (window.updateMarkerLive) window.updateMarkerLive(id, true);
+      if (window.getCurrentStationId && window.getCurrentStationId() === id) {
+        if (window.openStationPanel) window.openStationPanel(id);
+      }
+    });
+    stationsChannel.bind('station:stop', ({ id }) => {
+      if (window.updateMarkerLive) window.updateMarkerLive(id, false);
+      if (window.getCurrentStationId && window.getCurrentStationId() === id) {
+        if (window.stopPlayerSync) window.stopPlayerSync();
+        if (window.openStationPanel) window.openStationPanel(id);
+      }
+    });
+  } else {
+    console.warn('Pusher not available — real-time features disabled.');
+  }
 
   // Chat input
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
 
-  function sendMessage() {
+  async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
     const user = getCurrentUser();
     const username = user ? user.username : 'Anonymous';
-    _socket.emit('chat:message', { username, message: text });
     input.value = '';
+    try {
+      await apiFetch('/api/chat/message', {
+        method: 'POST',
+        body: JSON.stringify({ username, message: text }),
+      });
+    } catch (e) {
+      console.warn('Failed to send message:', e.message);
+    }
   }
 
   sendBtn.addEventListener('click', sendMessage);
@@ -91,11 +114,11 @@ function escapeHtmlChat(str) {
 }
 
 function joinStationRoom(stationId) {
-  if (_socket) _socket.emit('station:join', stationId);
+  // No-op with Pusher — all clients receive all station events via the 'stations' channel
 }
 
 function leaveStationRoom(stationId) {
-  if (_socket) _socket.emit('station:leave', stationId);
+  // No-op with Pusher
 }
 
 window.initChat = initChat;
